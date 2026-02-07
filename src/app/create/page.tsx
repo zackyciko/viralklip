@@ -1,6 +1,128 @@
+'use client';
+
 import Link from "next/link";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useDropzone } from "react-dropzone";
 
 export default function CreateProject() {
+    const router = useRouter();
+    const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [aspectRatio, setAspectRatio] = useState('9:16');
+    const [smartSubtitles, setSmartSubtitles] = useState(true);
+    const [faceZoom, setFaceZoom] = useState(false);
+    const [language, setLanguage] = useState('Indonesian');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState('');
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        if (acceptedFiles?.length > 0) {
+            setSelectedFile(acceptedFiles[0]);
+            setYoutubeUrl(''); // Clear YouTube URL if file is selected
+            setError('');
+        }
+    }, []);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+        onDrop,
+        accept: {
+            'video/mp4': ['.mp4'],
+            'video/quicktime': ['.mov', '.qt'],
+            'video/x-msvideo': ['.avi'],
+            'video/webm': ['.webm']
+        },
+        maxFiles: 1,
+        maxSize: 500 * 1024 * 1024 // 500MB
+    });
+
+    const handleSubmit = async () => {
+        if (!youtubeUrl.trim() && !selectedFile) {
+            setError('Please provide a YouTube URL or upload a video file');
+            return;
+        }
+
+        setIsProcessing(true);
+        setError('');
+        setUploadProgress(0);
+
+        try {
+            let project;
+
+            if (selectedFile) {
+                // Handle File Upload
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                // Simulated progress (since fetch doesn't support progress events natively easily)
+                const progressInterval = setInterval(() => {
+                    setUploadProgress(prev => Math.min(prev + 10, 90));
+                }, 500);
+
+                const uploadRes = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                clearInterval(progressInterval);
+                setUploadProgress(100);
+
+                if (!uploadRes.ok) {
+                    const errData = await uploadRes.json();
+                    throw new Error(errData.error || 'Failed to upload video');
+                }
+
+                const data = await uploadRes.json();
+                project = data.project;
+
+            } else {
+                // Handle YouTube URL
+                const projectRes = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_url: youtubeUrl,
+                        video_title: 'New Project'
+                    })
+                });
+
+                if (!projectRes.ok) {
+                    const errData = await projectRes.json();
+                    throw new Error(errData.error || 'Failed to create project');
+                }
+
+                const data = await projectRes.json();
+                project = data.project;
+            }
+
+            // Step 2: Trigger Worker API for processing
+            // Note: For uploaded files, the worker might need to download from Supabase Storage provided in video_url
+            const workerRes = await fetch('/api/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: project.id,
+                    video_url: project.video_url, // This will be public Supabase URL for uploads
+                    aspect_ratios: [aspectRatio],
+                    target_count: 10
+                })
+            });
+
+            if (!workerRes.ok) {
+                const errData = await workerRes.json();
+                throw new Error(errData.error || 'Failed to start processing');
+            }
+
+            // Redirect to editor with the new project
+            router.push(`/editor/${project.id}`);
+        } catch (err: any) {
+            setError(err.message || 'Something went wrong');
+            setIsProcessing(false);
+            setUploadProgress(0);
+        }
+    };
+
     return (
         <div className="bg-background-dark text-white font-body min-h-screen flex flex-col relative overflow-hidden">
             {/* Background VFX */}
@@ -41,7 +163,7 @@ export default function CreateProject() {
             </header>
 
             {/* Main Content */}
-            <main className="relative z-10 flex-grow flex flex-col lg:row overflow-hidden">
+            <main className="relative z-10 flex-grow flex flex-col lg:flex-row overflow-hidden">
                 {/* Workspace Area */}
                 <div className="flex-grow p-6 lg:p-12 overflow-y-auto custom-scrollbar">
                     <div className="max-w-4xl mx-auto space-y-12">
@@ -60,21 +182,46 @@ export default function CreateProject() {
                             </p>
                         </div>
 
+                        {/* Error Message */}
+                        {error && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                                <p className="text-red-400 text-sm font-bold">{error}</p>
+                            </div>
+                        )}
+
                         {/* Upload Matrix */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Drop Zone */}
-                            <div className="group relative aspect-video md:aspect-auto md:h-[320px] glass-card rounded-2xl border-white/5 hover:border-primary/40 transition-all duration-500 flex flex-col items-center justify-center p-8 gap-6 overflow-hidden">
+                            <div
+                                {...getRootProps()}
+                                className={`group relative aspect-video md:aspect-auto md:h-[320px] glass-card rounded-2xl border-white/5 transition-all duration-500 flex flex-col items-center justify-center p-8 gap-6 overflow-hidden cursor-pointer ${isDragActive ? 'border-primary bg-primary/10' : 'hover:border-primary/40'}`}
+                            >
+                                <input {...getInputProps()} />
                                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                 <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(0,242,255,0.1)]">
                                     <span className="material-symbols-outlined text-primary text-3xl font-bold">upload_file</span>
                                 </div>
-                                <div className="text-center space-y-1">
-                                    <h3 className="text-sm font-black uppercase tracking-widest">Drop Video File</h3>
-                                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">MP4, MOV up to 2GB</p>
+                                <div className="text-center space-y-1 z-10">
+                                    <h3 className="text-sm font-black uppercase tracking-widest">
+                                        {selectedFile ? selectedFile.name : (isDragActive ? "Drop it here!" : "Drop Video File")}
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                                        {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB` : "MP4, MOV up to 500MB"}
+                                    </p>
                                 </div>
-                                <button className="relative px-6 py-2 bg-white/5 border border-white/10 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black hover:border-primary transition-all">
-                                    Browse Files
-                                </button>
+                                {!selectedFile && (
+                                    <button className="relative px-6 py-2 bg-white/5 border border-white/10 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-black hover:border-primary transition-all z-10">
+                                        Browse Files
+                                    </button>
+                                )}
+                                {selectedFile && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                                        className="relative px-6 py-2 bg-red-500/10 border border-red-500/20 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all z-10"
+                                    >
+                                        Remove File
+                                    </button>
+                                )}
                             </div>
 
                             {/* YouTube Import */}
@@ -90,8 +237,14 @@ export default function CreateProject() {
                                 <div className="relative group">
                                     <input
                                         type="text"
-                                        placeholder="PASTE URL HERE"
+                                        value={youtubeUrl}
+                                        onChange={(e) => {
+                                            setYoutubeUrl(e.target.value);
+                                            setSelectedFile(null); // Clear file if typing URL
+                                        }}
+                                        placeholder="PASTE YOUTUBE URL HERE"
                                         className="w-full bg-black/40 border-0 border-b-2 border-white/10 py-4 font-display font-black text-sm tracking-widest placeholder:text-white/10 focus:ring-0 focus:border-primary transition-all text-primary"
+                                        disabled={isProcessing}
                                     />
                                     <div className="absolute right-0 bottom-4 opacity-0 group-focus-within:opacity-100 transition-opacity">
                                         <span className="material-symbols-outlined text-primary text-sm animate-pulse">sensors</span>
@@ -114,7 +267,7 @@ export default function CreateProject() {
                                 {[1, 2, 3, 4, 5].map((i) => (
                                     <div key={i} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em]">
                                         <span className="text-primary">●</span>
-                                        <span>Recent Analysis: "Marketing_Podcast_Final.mp4"</span>
+                                        <span>Recent Analysis: &quot;Marketing_Podcast_Final.mp4&quot;</span>
                                         <span className="text-white/20">|</span>
                                     </div>
                                 ))}
@@ -136,14 +289,19 @@ export default function CreateProject() {
                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Canvas Ratio</label>
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { label: '9:16', icon: 'smartphone', active: true },
-                                    { label: '1:1', icon: 'square_foot', active: false },
-                                    { label: '16:9', icon: 'tv', active: false }
+                                    { label: '9:16', icon: 'smartphone' },
+                                    { label: '1:1', icon: 'square_foot' },
+                                    { label: '16:9', icon: 'tv' }
                                 ].map((item) => (
-                                    <button key={item.label} className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${item.active
+                                    <button
+                                        key={item.label}
+                                        onClick={() => setAspectRatio(item.label)}
+                                        className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${aspectRatio === item.label
                                             ? 'bg-primary/10 border-primary shadow-[0_0_15px_rgba(0,242,255,0.15)] text-primary'
                                             : 'bg-white/5 border-white/5 text-white/30 hover:border-white/20'
-                                        }`}>
+                                            }`}
+                                        disabled={isProcessing}
+                                    >
                                         <span className="material-symbols-outlined text-xl">{item.icon}</span>
                                         <span className="text-[10px] font-black">{item.label}</span>
                                     </button>
@@ -155,30 +313,43 @@ export default function CreateProject() {
                         <div className="space-y-6">
                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40">AI Orchestrator</label>
                             <div className="space-y-4">
-                                <div className="p-4 glass-card rounded-xl border-white/10 flex items-center justify-between">
+                                <button
+                                    onClick={() => setSmartSubtitles(!smartSubtitles)}
+                                    className={`w-full p-4 glass-card rounded-xl flex items-center justify-between transition-all ${smartSubtitles ? 'border-primary/30' : 'border-white/10'}`}
+                                    disabled={isProcessing}
+                                >
                                     <div className="flex items-center gap-3">
-                                        <span className="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                                        <span className={`material-symbols-outlined text-sm ${smartSubtitles ? 'text-primary' : 'text-white/50'}`}>auto_awesome</span>
                                         <span className="text-[10px] font-black uppercase tracking-widest">Smart Subtitles</span>
                                     </div>
-                                    <div className="size-4 rounded-full border-2 border-primary bg-primary/20"></div>
-                                </div>
-                                <div className="p-4 glass-card rounded-xl border-white/5 flex items-center justify-between opacity-50">
+                                    <div className={`size-4 rounded-full border-2 ${smartSubtitles ? 'border-primary bg-primary/20' : 'border-white/10'}`}></div>
+                                </button>
+                                <button
+                                    onClick={() => setFaceZoom(!faceZoom)}
+                                    className={`w-full p-4 glass-card rounded-xl flex items-center justify-between transition-all ${faceZoom ? 'border-primary/30' : 'border-white/5 opacity-50'}`}
+                                    disabled={isProcessing}
+                                >
                                     <div className="flex items-center gap-3">
-                                        <span className="material-symbols-outlined text-white/50 text-sm">face</span>
+                                        <span className={`material-symbols-outlined text-sm ${faceZoom ? 'text-primary' : 'text-white/50'}`}>face</span>
                                         <span className="text-[10px] font-black uppercase tracking-widest">Face Zoom</span>
                                     </div>
-                                    <div className="size-4 rounded-full border-2 border-white/10"></div>
-                                </div>
+                                    <div className={`size-4 rounded-full border-2 ${faceZoom ? 'border-primary bg-primary/20' : 'border-white/10'}`}></div>
+                                </button>
                             </div>
                         </div>
 
                         {/* Language Matrix */}
                         <div className="space-y-4">
                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Language Detection</label>
-                            <select className="w-full bg-white/5 border border-white/10 rounded-sm py-3 px-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-primary text-primary transition-all">
-                                <option>Indonesian (Optimized)</option>
-                                <option>English (Neural)</option>
-                                <option>Japanese (Flash)</option>
+                            <select
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-sm py-3 px-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-primary text-primary transition-all"
+                                disabled={isProcessing}
+                            >
+                                <option value="Indonesian">Indonesian (Optimized)</option>
+                                <option value="English">English (Neural)</option>
+                                <option value="Japanese">Japanese (Flash)</option>
                             </select>
                         </div>
                     </div>
@@ -192,13 +363,34 @@ export default function CreateProject() {
                             </div>
                         </div>
 
-                        <Link href="/editor/1" className="group relative h-14 w-full flex items-center justify-center overflow-hidden">
+                        {isProcessing && uploadProgress > 0 && uploadProgress < 100 && (
+                            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isProcessing || (!youtubeUrl.trim() && !selectedFile)}
+                            className="group relative h-14 w-full flex items-center justify-center overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <div className="absolute inset-0 bg-primary clip-parallelogram group-hover:scale-[1.05] transition-transform"></div>
                             <div className="absolute inset-0 flex items-center justify-center gap-3 transform skew-x-[-10deg]">
-                                <span className="text-black font-black uppercase tracking-[0.2em]">Generate Neural Clips</span>
-                                <span className="material-symbols-outlined text-black font-bold text-lg animate-bounce-right">arrow_forward</span>
+                                {isProcessing ? (
+                                    <>
+                                        <span className="material-symbols-outlined text-black font-bold text-lg animate-spin">progress_activity</span>
+                                        <span className="text-black font-black uppercase tracking-[0.2em]">
+                                            {uploadProgress > 0 && uploadProgress < 100 ? `Uploading ${uploadProgress}%` : "Processing..."}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-black font-black uppercase tracking-[0.2em]">Generate Neural Clips</span>
+                                        <span className="material-symbols-outlined text-black font-bold text-lg animate-bounce-right">arrow_forward</span>
+                                    </>
+                                )}
                             </div>
-                        </Link>
+                        </button>
                     </div>
                 </aside>
             </main>

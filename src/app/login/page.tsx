@@ -34,10 +34,17 @@ export default function LoginPage() {
     const handleGoogleLogin = async () => {
         setLoading(true);
         const supabase = createClient();
+
+        // Use production URL if we are not on localhost (simple check) or just rely on window.location
+        // Ideally this should be an ENV, but for client-side quick fix:
+        const origin = window.location.hostname.includes('localhost')
+            ? 'http://localhost:3000'
+            : 'https://viralklip.vercel.app';
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: `${origin}/auth/callback`,
             },
         });
 

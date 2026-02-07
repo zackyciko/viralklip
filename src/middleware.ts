@@ -65,7 +65,9 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     // Protected routes - redirect to login if not authenticated
-    const protectedRoutes = ['/dashboard', '/create', '/editor', '/analytics', '/templates', '/leaderboard', '/affiliate', '/teams', '/marketplace', '/settings']
+    // We keep Leaderboard, Marketplace, and Templates PUBLIC for viral growth/SEO.
+    // Only personal/write-action routes should be protected.
+    const protectedRoutes = ['/dashboard', '/create', '/editor', '/analytics', '/affiliate', '/teams', '/settings']
     const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
     if (isProtectedRoute && !user) {

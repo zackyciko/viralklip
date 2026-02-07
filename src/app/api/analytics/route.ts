@@ -38,10 +38,10 @@ export async function GET() {
         // Get clips with viral scores
         const { data: clips } = await supabase
             .from('clips')
-            .select('viral_score, view_prediction, created_at')
+            .select('id, viral_score, view_prediction, created_at, video_url, thumbnail_url, projects(video_title)')
             .in('project_id', projectIds)
-            .order('created_at', { ascending: false })
-            .limit(100)
+            .order('viral_score', { ascending: false })
+            .limit(10)
 
         // Calculate average viral score
         // @ts-ignore - Placeholder types will be replaced when user generates real Supabase types

@@ -1,6 +1,10 @@
-import Link from "next/link";
+"use client";
 
-const marketplaceClips = [
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+
+const MARKETPLACE_CLIPS = [
     { id: 1, title: "Cyber Glitch Vibe", stats: "124k Jobs", growth: "+42%", creator: "NeonX", img: "https://i.pravatar.cc/300?u=m1", aspect: "aspect-[9/16]" },
     { id: 2, title: "Podcast Neural Node", stats: "82k Jobs", growth: "+18%", creator: "PodCuts", img: "https://i.pravatar.cc/300?u=m2", aspect: "aspect-[4/5]" },
     { id: 3, title: "Cinematic Void", stats: "45k Jobs", growth: "+92%", creator: "GlassLab", img: "https://i.pravatar.cc/300?u=m3", aspect: "aspect-video" },
@@ -10,6 +14,25 @@ const marketplaceClips = [
 ];
 
 export default function MarketplacePage() {
+    const [loading, setLoading] = useState(true);
+    const [clips, setClips] = useState<any[]>([]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setClips(MARKETPLACE_CLIPS);
+            setLoading(false);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background-dark flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
     return (
         <div className="bg-background-dark text-white font-body min-h-screen flex flex-col relative overflow-hidden">
             {/* Background VFX */}
@@ -79,7 +102,7 @@ export default function MarketplacePage() {
 
                     {/* Asset Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {marketplaceClips.map((clip) => (
+                        {clips.map((clip) => (
                             <div key={clip.id} className="group glass-card rounded-3xl border-white/5 p-4 space-y-6 hover:border-primary/30 transition-all relative">
                                 <div className={`relative ${clip.aspect} rounded-2xl overflow-hidden bg-white/5`}>
                                     <img src={clip.img} alt={clip.title} className="size-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" />

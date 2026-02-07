@@ -6,7 +6,7 @@ import axios from "axios";
 export interface UserProfile {
     id: string;
     email: string;
-    name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
     subscription_tier: string;
     credits_remaining: number;
@@ -38,7 +38,7 @@ export function useUser() {
         }
     };
 
-    const updateProfile = async (data: { name?: string; avatar_url?: string }) => {
+    const updateProfile = async (data: { full_name?: string; avatar_url?: string }) => {
         try {
             const response = await axios.patch("/api/user", data);
             setProfile(response.data.profile);

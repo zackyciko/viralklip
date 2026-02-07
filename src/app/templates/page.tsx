@@ -1,11 +1,16 @@
-import Link from "next/link";
+"use client";
 
-const featuredCollections = [
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+
+const FEATURED_COLLECTIONS = [
     { id: 1, title: "High Velocity", tag: "Alpha", update: "2h ago", desc: "Whiplash-inducing transitions and punchy neon text effects for high-energy tech highlights.", img: "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop" },
     { id: 2, title: "Deep Focus", tag: "Beta", update: "12m ago", desc: "Minimalist captions and subtle neural waveforms designed for long-form matrix content.", img: "https://images.unsplash.com/photo-1639322537228-f710d846310a?q=80&w=1932&auto=format&fit=crop" }
 ];
 
-const templates = [
+const TEMPLATES = [
     { id: 1, title: "Hormozi Kinetic", rating: 4.9, desc: "Rapid-fire neon yellow captions with zoom cuts.", uses: "12.5k", creator: "Sarah K.", aspect: "aspect-[9/16]", img: "https://i.pravatar.cc/300?u=a1" },
     { id: 2, title: "Cinematic Vlog", rating: 4.2, desc: "Slow pans, moody grading, and elegant serif nodes.", uses: "840", creator: "Davide R.", aspect: "aspect-video", img: "https://i.pravatar.cc/300?u=a2" },
     { id: 3, title: "Podcast Pro", rating: 4.7, desc: "Split screen layout with neural waveform visualization.", uses: "5.2k", creator: "PodCuts", aspect: "aspect-[4/5]", img: "https://i.pravatar.cc/300?u=a3" },
@@ -15,6 +20,51 @@ const templates = [
 ];
 
 export default function TemplateLibrary() {
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [processingId, setProcessingId] = useState<number | null>(null);
+
+    useEffect(() => {
+        // Simulate API fetch delay
+        const timer = setTimeout(() => {
+            setTemplates(TEMPLATES);
+            setLoading(false);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleUseTemplate = async (template: any) => {
+        setProcessingId(template.id);
+        try {
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    video_url: "https://www.w3schools.com/html/mov_bbb.mp4", // Mock URL for template
+                    video_title: `${template.title} Project`,
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to create project');
+
+            const data = await response.json();
+            router.push(`/editor/${data.project.id}`);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to use template");
+            setProcessingId(null);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background-dark flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
     return (
         <div className="bg-background-dark text-white font-body min-h-screen flex flex-col relative overflow-hidden">
             {/* Background VFX */}
@@ -78,7 +128,7 @@ export default function TemplateLibrary() {
 
                     {/* Featured Collections */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {featuredCollections.map((col) => (
+                        {FEATURED_COLLECTIONS.map((col) => (
                             <div key={col.id} className="group relative aspect-[16/7] rounded-3xl overflow-hidden border border-white/5 hover:border-primary/20 transition-all">
                                 <img src={col.img} alt={col.title} className="size-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/20 to-transparent"></div>
@@ -117,8 +167,16 @@ export default function TemplateLibrary() {
                                         <img src={tpl.img} alt={tpl.title} className="size-full object-cover group-hover:scale-110 transition-transform duration-500 grayscale group-hover:grayscale-0" />
                                         <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-all"></div>
                                         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all">
-                                            <button className="size-10 bg-primary text-black rounded-lg flex items-center justify-center border border-primary/40 shadow-[0_0_15px_rgba(0,242,255,0.4)]">
-                                                <span className="material-symbols-outlined font-bold">bolt</span>
+                                            <button
+                                                onClick={() => handleUseTemplate(tpl)}
+                                                disabled={processingId === tpl.id}
+                                                className="size-10 bg-primary text-black rounded-lg flex items-center justify-center border border-primary/40 shadow-[0_0_15px_rgba(0,242,255,0.4)] disabled:opacity-50"
+                                            >
+                                                {processingId === tpl.id ? (
+                                                    <span className="material-symbols-outlined font-bold animate-spin">progress_activity</span>
+                                                ) : (
+                                                    <span className="material-symbols-outlined font-bold">bolt</span>
+                                                )}
                                             </button>
                                         </div>
                                         <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10">

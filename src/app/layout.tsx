@@ -13,9 +13,58 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { siteConfig } from "@/lib/seo";
+
 export const metadata: Metadata = {
-  title: "ViralKlip - AI-Powered Viral Clip Generator",
-  description: "Transform long videos into viral clips in minutes with AI",
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  keywords: [
+    "AI video editor",
+    "viral clips",
+    "content creation",
+    "TikTok downloader",
+    "Reels generator",
+    "Indonesia AI",
+  ],
+  authors: [
+    {
+      name: "ViralKlip Team",
+      url: "https://viralklip.vercel.app",
+    },
+  ],
+  creator: "ViralKlip",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: siteConfig.url,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: siteConfig.ogImage,
+        width: 1200,
+        height: 630,
+        alt: siteConfig.name,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [siteConfig.ogImage],
+    creator: siteConfig.creator,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: `${siteConfig.url}/site.webmanifest`,
 };
 
 export default function RootLayout({

@@ -60,8 +60,8 @@ export default function MobileNav() {
                                     href={item.href}
                                     onClick={() => setIsOpen(false)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                            ? "bg-primary/20 border border-primary/30 text-primary"
-                                            : "hover:bg-white/5 border border-transparent"
+                                        ? "bg-primary/20 border border-primary/30 text-primary"
+                                        : "hover:bg-white/5 border border-transparent"
                                         }`}
                                 >
                                     <span className="material-symbols-outlined text-xl">
@@ -81,6 +81,22 @@ export default function MobileNav() {
                         >
                             Upgrade
                         </Link>
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                            <Link
+                                href="/login"
+                                onClick={() => setIsOpen(false)}
+                                className="block w-full py-3 px-4 bg-white/5 border border-white/10 text-white rounded-xl font-display font-black uppercase tracking-[0.2em] text-xs text-center hover:bg-white/10 transition-all"
+                            >
+                                Login
+                            </Link>
+                            <Link
+                                href="/signup"
+                                onClick={() => setIsOpen(false)}
+                                className="block w-full py-3 px-4 bg-white/5 border border-white/10 text-primary rounded-xl font-display font-black uppercase tracking-[0.2em] text-xs text-center hover:bg-white/10 transition-all"
+                            >
+                                Sign Up
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </nav>

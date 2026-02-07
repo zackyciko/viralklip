@@ -15,6 +15,7 @@ export interface Project {
     transcript: string | null;
     created_at: string;
     completed_at: string | null;
+    viral_score?: number | null;
 }
 
 export function useProjects() {
