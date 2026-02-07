@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: viralklip-worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./worker
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: WORKER_API_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: viralklip-videos
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://viralklip.vercel.app,http://localhost:3000
