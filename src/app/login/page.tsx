@@ -138,7 +138,7 @@ export default function LoginPage() {
                         className="w-full py-4 glass-card rounded-xl border-white/10 text-[10px] font-black uppercase tracking-widest hover:border-primary/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <span className="material-symbols-outlined text-xl">account_circle</span>
-                        Google Matrix
+                        Login with Google
                     </button>
 
                     {/* Sign Up Link */}
