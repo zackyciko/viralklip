@@ -29,12 +29,12 @@ export default function LandingPage() {
             </Link>
           ))}
         </div>
-        <div className="flex items-center gap-4">
-          <Link href="/login" className="hidden sm:block text-white/80 text-sm font-bold uppercase tracking-widest hover:text-white transition-colors">
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="text-white/80 text-xs sm:text-sm font-bold uppercase tracking-widest hover:text-white transition-colors px-3 py-2">
             Login
           </Link>
-          <Link href="/dashboard" className="bg-primary text-black px-6 py-2.5 rounded-sm text-sm font-black uppercase tracking-widest transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(0,242,255,0.5)] active:scale-95">
-            Launch App
+          <Link href="/signup" className="bg-primary text-black px-4 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-black uppercase tracking-widest transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(0,242,255,0.5)] active:scale-95">
+            Sign Up Free
           </Link>
         </div>
       </nav>
@@ -63,7 +63,7 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-6 pt-4">
-              <Link href="/dashboard" className="group relative h-16 w-full sm:w-64">
+              <Link href="/signup" className="group relative h-16 w-full sm:w-64">
                 <div className="absolute inset-0 bg-primary clip-parallelogram shadow-[0_0_20px_rgba(0,242,255,0.3)] transition-transform group-hover:scale-[1.02]"></div>
                 <div className="absolute inset-0 flex items-center justify-center gap-2">
                   <span className="text-black font-black uppercase tracking-[0.2em] transform skew-x-[-10deg]">Mulai Sekarang</span>
