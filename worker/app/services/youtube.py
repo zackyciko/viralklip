@@ -1,13 +1,152 @@
-import yt_dlp
+import httpx
 import os
+import re
+import subprocess
 from pathlib import Path
 from app.config import settings
 from app.utils.logger import logger
 
 
+def extract_video_id(url: str) -> str:
+    """Extract YouTube video ID from URL"""
+    patterns = [
+        r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})',
+        r'youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    raise ValueError(f"Could not extract video ID from URL: {url}")
+
+
+async def download_with_rapidapi(video_id: str, video_path: str, audio_path: str) -> dict:
+    """
+    Download video using YTStream RapidAPI
+    Returns video metadata (title, duration)
+    """
+    api_key = getattr(settings, 'RAPIDAPI_KEY', None)
+    if not api_key:
+        raise ValueError("RAPIDAPI_KEY not configured")
+    
+    headers = {
+        "X-RapidAPI-Key": api_key,
+        "X-RapidAPI-Host": "ytstream-download-youtube-videos.p.rapidapi.com"
+    }
+    
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        # Get video info and download URLs
+        logger.info(f"Fetching video info from YTStream API for: {video_id}")
+        response = await client.get(
+            f"https://ytstream-download-youtube-videos.p.rapidapi.com/dl?id={video_id}",
+            headers=headers
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"YTStream API error: {response.status_code} - {response.text}")
+        
+        data = response.json()
+        
+        if data.get('status') != 'OK':
+            raise Exception(f"YTStream API returned error: {data}")
+        
+        # Get video title and duration
+        title = data.get('title', 'Unknown')
+        duration = data.get('duration', 0)
+        
+        # Parse duration string to seconds (format: "MM:SS" or "HH:MM:SS")
+        if isinstance(duration, str):
+            parts = duration.split(':')
+            if len(parts) == 2:
+                duration = int(parts[0]) * 60 + int(parts[1])
+            elif len(parts) == 3:
+                duration = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            else:
+                duration = 0
+        
+        logger.info(f"Video info: {title} ({duration}s)")
+        
+        # Check duration limit
+        max_duration = getattr(settings, 'MAX_VIDEO_DURATION', 3600)
+        if duration > max_duration:
+            raise ValueError(f"Video too long: {duration}s (max: {max_duration}s)")
+        
+        # Find best video format (prefer 720p mp4)
+        formats = data.get('formats', [])
+        video_url = None
+        audio_url = None
+        
+        # Look for video with audio combined
+        for fmt in formats:
+            if fmt.get('mimeType', '').startswith('video/mp4'):
+                quality = fmt.get('qualityLabel', '')
+                if '720p' in quality or '480p' in quality or '360p' in quality:
+                    video_url = fmt.get('url')
+                    break
+        
+        # Fallback to any video format
+        if not video_url:
+            for fmt in formats:
+                if fmt.get('mimeType', '').startswith('video/'):
+                    video_url = fmt.get('url')
+                    break
+        
+        # Look for audio format
+        adaptive_formats = data.get('adaptiveFormats', [])
+        for fmt in adaptive_formats:
+            if fmt.get('mimeType', '').startswith('audio/'):
+                audio_url = fmt.get('url')
+                break
+        
+        if not video_url:
+            raise Exception("No suitable video format found")
+        
+        # Download video file
+        logger.info(f"Downloading video from: {video_url[:100]}...")
+        video_response = await client.get(video_url, follow_redirects=True)
+        if video_response.status_code == 200:
+            Path(video_path).write_bytes(video_response.content)
+            logger.info(f"Video downloaded to: {video_path}")
+        else:
+            raise Exception(f"Failed to download video: {video_response.status_code}")
+        
+        # Download or extract audio
+        if audio_url:
+            logger.info(f"Downloading audio from: {audio_url[:100]}...")
+            audio_response = await client.get(audio_url, follow_redirects=True)
+            if audio_response.status_code == 200:
+                temp_audio = audio_path.replace('.mp3', '.m4a')
+                Path(temp_audio).write_bytes(audio_response.content)
+                
+                # Convert to MP3 using ffmpeg
+                subprocess.run([
+                    'ffmpeg', '-i', temp_audio, '-vn', '-acodec', 'libmp3lame',
+                    '-q:a', '2', audio_path, '-y'
+                ], capture_output=True)
+                
+                # Cleanup temp file
+                if os.path.exists(temp_audio):
+                    os.remove(temp_audio)
+        else:
+            # Extract audio from video using ffmpeg
+            logger.info("Extracting audio from video...")
+            subprocess.run([
+                'ffmpeg', '-i', video_path, '-vn', '-acodec', 'libmp3lame',
+                '-q:a', '2', audio_path, '-y'
+            ], capture_output=True)
+        
+        logger.info(f"Audio saved to: {audio_path}")
+        
+        return {
+            'title': title,
+            'duration': duration
+        }
+
+
 async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
     """
-    Download video from YouTube or direct URL
+    Download video from YouTube using RapidAPI (YTStream)
+    Falls back to direct download for non-YouTube URLs
     
     Returns:
         tuple: (video_path, audio_path)
@@ -19,86 +158,37 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
     video_path = str(temp_dir / "video.mp4")
     audio_path = str(temp_dir / "audio.mp3")
     
-    ydl_opts = {
-        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
-        'outtmpl': video_path,
-        'quiet': False,
-        'no_warnings': False,
-        'extract_audio': False,
-        'nocheckcertificate': True,
-        # Bypass bot detection - use mweb/android clients which bypass restrictions
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['mweb', 'android_creator', 'android', 'tv'],
-                'player_skip': ['webpage'],
-            }
-        },
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-        },
-        'sleep_interval': 3,
-        'max_sleep_interval': 10,
-        'sleep_interval_requests': 2,
-        'socket_timeout': 120,
-        'retries': 15,
-        'fragment_retries': 15,
-        'file_access_retries': 5,
-        'skip_download': False,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
-
-    
     try:
-        logger.info(f"Downloading video from: {video_url}")
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Download video
-            info = ydl.extract_info(video_url, download=True)
+        # Check if it's a YouTube URL
+        if 'youtube.com' in video_url or 'youtu.be' in video_url:
+            video_id = extract_video_id(video_url)
+            logger.info(f"Detected YouTube video: {video_id}")
             
-            # Get video metadata
-            duration = info.get('duration', 0)
-            title = info.get('title', 'Unknown')
+            # Use RapidAPI YTStream
+            metadata = await download_with_rapidapi(video_id, video_path, audio_path)
+            logger.info(f"Downloaded via RapidAPI: {metadata['title']}")
             
-            logger.info(f"Downloaded: {title} ({duration}s)")
-            
-            # Check duration limit
-            if duration > settings.MAX_VIDEO_DURATION:
-                raise ValueError(f"Video too long: {duration}s (max: {settings.MAX_VIDEO_DURATION}s)")
+        else:
+            # Direct URL - use httpx to download
+            logger.info(f"Downloading direct URL: {video_url}")
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                response = await client.get(video_url, follow_redirects=True)
+                if response.status_code == 200:
+                    Path(video_path).write_bytes(response.content)
+                    
+                    # Extract audio using ffmpeg
+                    subprocess.run([
+                        'ffmpeg', '-i', video_path, '-vn', '-acodec', 'libmp3lame',
+                        '-q:a', '2', audio_path, '-y'
+                    ], capture_output=True)
+                else:
+                    raise Exception(f"Failed to download: {response.status_code}")
         
-        # Extract audio separately for transcription
-        audio_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': audio_path,
-            'nocheckcertificate': True,
-            # Same bot detection bypass options
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['mweb', 'android_creator', 'android', 'tv'],
-                    'player_skip': ['webpage'],
-                }
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
-            },
-            'sleep_interval': 3,
-            'max_sleep_interval': 10,
-            'retries': 15,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-            }],
-        }
-        
-        with yt_dlp.YoutubeDL(audio_opts) as ydl:
-            ydl.download([video_url])
-        
-        logger.info(f"Audio extracted to: {audio_path}")
+        # Verify files exist
+        if not os.path.exists(video_path):
+            raise Exception("Video file was not created")
+        if not os.path.exists(audio_path):
+            raise Exception("Audio file was not created")
         
         return video_path, audio_path
         

@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     GEMINI_API_KEY: str
     
+    # RapidAPI (for YouTube downloads)
+    RAPIDAPI_KEY: Optional[str] = None
+    
     # Storage (Cloudflare R2) - Optional until configured
     R2_ACCOUNT_ID: Optional[str] = None
     R2_ACCESS_KEY_ID: Optional[str] = None

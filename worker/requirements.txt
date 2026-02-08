@@ -3,8 +3,7 @@ uvicorn[standard]==0.32.0
 pydantic==2.9.2
 pydantic-settings==2.6.0
 
-# Video processing
-yt-dlp>=2024.12.13
+# Video processing (uses RapidAPI YTStream for YouTube)
 ffmpeg-python==0.2.0
 
 # AI services
