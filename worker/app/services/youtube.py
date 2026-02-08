@@ -25,12 +25,28 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
         'quiet': False,
         'no_warnings': False,
         'extract_audio': False,
+        # Bypass bot detection options
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'web'],  # Use iOS client which doesn't require sign-in
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+            'Accept-Language': 'en-US,en;q=0.9',
+        },
+        'sleep_interval': 1,  # Add delay between requests
+        'max_sleep_interval': 3,
+        'socket_timeout': 30,
+        'retries': 10,
+        'fragment_retries': 10,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
     }
+
     
     try:
         logger.info(f"Downloading video from: {video_url}")
@@ -53,6 +69,19 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
         audio_opts = {
             'format': 'bestaudio/best',
             'outtmpl': audio_path,
+            # Same bot detection bypass options
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios', 'web'],
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            'sleep_interval': 1,
+            'max_sleep_interval': 3,
+            'retries': 10,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
