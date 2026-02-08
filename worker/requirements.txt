@@ -4,7 +4,7 @@ pydantic==2.9.2
 pydantic-settings==2.6.0
 
 # Video processing
-yt-dlp==2024.12.13
+yt-dlp @ https://github.com/yt-dlp/yt-dlp/releases/download/nightly/yt-dlp.tar.gz
 ffmpeg-python==0.2.0
 
 # AI services

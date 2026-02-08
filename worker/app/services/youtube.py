@@ -20,31 +20,31 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
     audio_path = str(temp_dir / "audio.mp3")
     
     ydl_opts = {
-        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
+        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
         'outtmpl': video_path,
         'quiet': False,
         'no_warnings': False,
         'extract_audio': False,
-        # Bypass bot detection options - use Android/TV clients
+        'nocheckcertificate': True,
+        # Bypass bot detection - use mweb/android clients which bypass restrictions
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'tv_embed', 'web'],
-                'player_skip': ['webpage', 'configs'],
+                'player_client': ['mweb', 'android_creator', 'android', 'tv'],
+                'player_skip': ['webpage'],
             }
         },
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
         },
-        'sleep_interval': 2,
-        'max_sleep_interval': 5,
-        'sleep_interval_requests': 1,
-        'socket_timeout': 60,
-        'retries': 10,
-        'fragment_retries': 10,
-        'file_access_retries': 3,
+        'sleep_interval': 3,
+        'max_sleep_interval': 10,
+        'sleep_interval_requests': 2,
+        'socket_timeout': 120,
+        'retries': 15,
+        'fragment_retries': 15,
+        'file_access_retries': 5,
+        'skip_download': False,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -74,21 +74,21 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
         audio_opts = {
             'format': 'bestaudio/best',
             'outtmpl': audio_path,
+            'nocheckcertificate': True,
             # Same bot detection bypass options
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'tv_embed', 'web'],
-                    'player_skip': ['webpage', 'configs'],
+                    'player_client': ['mweb', 'android_creator', 'android', 'tv'],
+                    'player_skip': ['webpage'],
                 }
             },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 'Accept-Language': 'en-US,en;q=0.9',
             },
-            'sleep_interval': 2,
-            'max_sleep_interval': 5,
-            'retries': 10,
+            'sleep_interval': 3,
+            'max_sleep_interval': 10,
+            'retries': 15,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
