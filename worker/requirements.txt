@@ -3,8 +3,8 @@ uvicorn[standard]==0.32.0
 pydantic==2.9.2
 pydantic-settings==2.6.0
 
-# Video processing - using master branch for latest YouTube fixes
-yt-dlp @ git+https://github.com/yt-dlp/yt-dlp.git@master
+# Video processing
+yt-dlp>=2024.12.13
 ffmpeg-python==0.2.0
 
 # AI services
