@@ -6,6 +6,19 @@ from pathlib import Path
 from app.config import settings
 from app.utils.logger import logger
 
+# Browser-like headers to bypass 403 restrictions on googlevideo.com
+DOWNLOAD_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "identity;q=1, *;q=0",
+    "Referer": "https://www.youtube.com/",
+    "Origin": "https://www.youtube.com",
+    "Sec-Fetch-Dest": "video",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "cross-site",
+}
+
 
 def extract_video_id(url: str) -> str:
     """Extract YouTube video ID from URL"""
@@ -101,22 +114,28 @@ async def download_with_rapidapi(video_id: str, video_path: str, audio_path: str
         if not video_url:
             raise Exception("No suitable video format found")
         
-        # Download video file
+        # Download video file with browser headers to bypass 403
         logger.info(f"Downloading video from: {video_url[:100]}...")
-        video_response = await client.get(video_url, follow_redirects=True)
-        if video_response.status_code == 200:
-            Path(video_path).write_bytes(video_response.content)
-            logger.info(f"Video downloaded to: {video_path}")
-        else:
-            raise Exception(f"Failed to download video: {video_response.status_code}")
+        async with httpx.AsyncClient(timeout=300.0, headers=DOWNLOAD_HEADERS) as download_client:
+            async with download_client.stream('GET', video_url, follow_redirects=True) as video_response:
+                if video_response.status_code == 200:
+                    with open(video_path, 'wb') as f:
+                        async for chunk in video_response.aiter_bytes(chunk_size=8192):
+                            f.write(chunk)
+                    logger.info(f"Video downloaded to: {video_path}")
+                else:
+                    raise Exception(f"Failed to download video: {video_response.status_code}")
         
         # Download or extract audio
         if audio_url:
             logger.info(f"Downloading audio from: {audio_url[:100]}...")
-            audio_response = await client.get(audio_url, follow_redirects=True)
-            if audio_response.status_code == 200:
-                temp_audio = audio_path.replace('.mp3', '.m4a')
-                Path(temp_audio).write_bytes(audio_response.content)
+            async with httpx.AsyncClient(timeout=300.0, headers=DOWNLOAD_HEADERS) as download_client:
+                async with download_client.stream('GET', audio_url, follow_redirects=True) as audio_response:
+                    if audio_response.status_code == 200:
+                        temp_audio = audio_path.replace('.mp3', '.m4a')
+                        with open(temp_audio, 'wb') as f:
+                            async for chunk in audio_response.aiter_bytes(chunk_size=8192):
+                                f.write(chunk)
                 
                 # Convert to MP3 using ffmpeg
                 subprocess.run([
