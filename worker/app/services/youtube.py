@@ -20,26 +20,31 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
     audio_path = str(temp_dir / "audio.mp3")
     
     ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best',
         'outtmpl': video_path,
         'quiet': False,
         'no_warnings': False,
         'extract_audio': False,
-        # Bypass bot detection options
+        # Bypass bot detection options - use Android/TV clients
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'web'],  # Use iOS client which doesn't require sign-in
+                'player_client': ['android', 'tv_embed', 'web'],
+                'player_skip': ['webpage', 'configs'],
             }
         },
         'http_headers': {
-            'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
         },
-        'sleep_interval': 1,  # Add delay between requests
-        'max_sleep_interval': 3,
-        'socket_timeout': 30,
+        'sleep_interval': 2,
+        'max_sleep_interval': 5,
+        'sleep_interval_requests': 1,
+        'socket_timeout': 60,
         'retries': 10,
         'fragment_retries': 10,
+        'file_access_retries': 3,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -72,15 +77,17 @@ async def download_video(video_url: str, job_id: str) -> tuple[str, str]:
             # Same bot detection bypass options
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'web'],
+                    'player_client': ['android', 'tv_embed', 'web'],
+                    'player_skip': ['webpage', 'configs'],
                 }
             },
             'http_headers': {
-                'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.9',
             },
-            'sleep_interval': 1,
-            'max_sleep_interval': 3,
+            'sleep_interval': 2,
+            'max_sleep_interval': 5,
             'retries': 10,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
