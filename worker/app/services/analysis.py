@@ -19,7 +19,7 @@ async def analyze_moments(transcript: dict, target_count: int = 10) -> List[Vira
     """
     try:
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         logger.info(f"Analyzing transcript for {target_count} viral moments")
         
